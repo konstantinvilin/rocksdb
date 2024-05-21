@@ -2176,23 +2176,33 @@ class H : public WriteBatch::Handler {
  public:
   void* state_;
   void (*put_)(void*, const char* k, size_t klen, const char* v, size_t vlen);
+  void (*put_cf_)(void*, uint32_t cfid, const char* k, size_t klen,
+                  const char* v, size_t vlen);
   void (*deleted_)(void*, const char* k, size_t klen);
   void Put(const Slice& key, const Slice& value) override {
     (*put_)(state_, key.data(), key.size(), value.data(), value.size());
+  }
+  Status PutCF(uint32_t column_family_id, const Slice& key,
+               const Slice& value) override {
+    (*put_cf_)(state_, column_family_id, key.data(), key.size(), value.data(),
+               value.size());
+    return Status::OK();
   }
   void Delete(const Slice& key) override {
     (*deleted_)(state_, key.data(), key.size());
   }
 };
 
-void rocksdb_writebatch_iterate(rocksdb_writebatch_t* b, void* state,
-                                void (*put)(void*, const char* k, size_t klen,
-                                            const char* v, size_t vlen),
-                                void (*deleted)(void*, const char* k,
-                                                size_t klen)) {
+void rocksdb_writebatch_iterate(
+    rocksdb_writebatch_t* b, void* state,
+    void (*put)(void*, const char* k, size_t klen, const char* v, size_t vlen),
+    void (*put_cf)(void*, uint32_t cfid, const char* k, size_t klen,
+                   const char* v, size_t vlen),
+    void (*deleted)(void*, const char* k, size_t klen)) {
   H handler;
   handler.state_ = state;
   handler.put_ = put;
+  handler.put_cf_ = put_cf;
   handler.deleted_ = deleted;
   b->rep.Iterate(&handler);
 }
@@ -2428,10 +2438,13 @@ void rocksdb_writebatch_wi_put_log_data(rocksdb_writebatch_wi_t* b,
 void rocksdb_writebatch_wi_iterate(
     rocksdb_writebatch_wi_t* b, void* state,
     void (*put)(void*, const char* k, size_t klen, const char* v, size_t vlen),
+    void (*put_cf)(void*, uint32_t cfid, const char* k, size_t klen,
+                   const char* v, size_t vlen),
     void (*deleted)(void*, const char* k, size_t klen)) {
   H handler;
   handler.state_ = state;
   handler.put_ = put;
+  handler.put_cf_ = put_cf;
   handler.deleted_ = deleted;
   b->rep->GetWriteBatch()->Iterate(&handler);
 }
