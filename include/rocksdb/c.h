@@ -835,7 +835,8 @@ extern ROCKSDB_LIBRARY_API void rocksdb_writebatch_iterate(
     void (*put)(void*, const char* k, size_t klen, const char* v, size_t vlen),
     void (*put_cf)(void*, uint32_t cfid, const char* k, size_t klen,
                    const char* v, size_t vlen),
-    void (*deleted)(void*, const char* k, size_t klen));
+    void (*deleted)(void*, const char* k, size_t klen),
+    void (*deleted_cf)(void*, uint32_t cfid, const char* k, size_t klen));
 extern ROCKSDB_LIBRARY_API const char* rocksdb_writebatch_data(
     rocksdb_writebatch_t*, size_t* size);
 extern ROCKSDB_LIBRARY_API void rocksdb_writebatch_set_save_point(
@@ -931,7 +932,8 @@ extern ROCKSDB_LIBRARY_API void rocksdb_writebatch_wi_iterate(
     void (*put)(void*, const char* k, size_t klen, const char* v, size_t vlen),
     void (*put_cf)(void*, uint32_t cfid, const char* k, size_t klen,
                    const char* v, size_t vlen),
-    void (*deleted)(void*, const char* k, size_t klen));
+    void (*deleted)(void*, const char* k, size_t klen),
+    void (*deleted_cf)(void*, uint32_t cfid, const char* k, size_t klen));
 extern ROCKSDB_LIBRARY_API const char* rocksdb_writebatch_wi_data(
     rocksdb_writebatch_wi_t* b, size_t* size);
 extern ROCKSDB_LIBRARY_API void rocksdb_writebatch_wi_set_save_point(

@@ -226,8 +226,27 @@ static void CheckPutCF(void* ptr, uint32_t cfid, const char* k, size_t klen,
 // Callback from rocksdb_writebatch_iterate()
 static void CheckDel(void* ptr, const char* k, size_t klen) {
   int* state = (int*)ptr;
-  CheckCondition(*state == 2);
+  CheckCondition((*state) == 2);
   CheckEqual("bar", k, klen);
+  (*state)++;
+}
+
+// Callback from rocksdb_writebatch_iterate()
+static void CheckDelCF(void* ptr, uint32_t cfid, const char* k, size_t klen) {
+  int* state = (int*)ptr;
+  switch (*state) {
+    case 2:
+      CheckEqual("bar", k, klen);
+      CheckCondition(cfid == 0);
+      break;
+    case 12:
+      CheckEqual("bar", k, klen);
+      CheckCondition(cfid == 1);
+      break;
+    default:
+      CheckCondition(false);
+      break;
+  }
   (*state)++;
 }
 
@@ -1008,7 +1027,8 @@ int main(int argc, char** argv) {
     CheckGet(db, roptions, "bar", NULL);
     CheckGet(db, roptions, "box", "c");
     int pos = 0;
-    rocksdb_writebatch_iterate(wb, &pos, CheckPut, CheckPutCF, CheckDel);
+    rocksdb_writebatch_iterate(wb, &pos, CheckPut, CheckPutCF, CheckDel,
+                               CheckDelCF);
     CheckCondition(pos == 3);
     rocksdb_writebatch_clear(wb);
     rocksdb_writebatch_put(wb, "bar", 3, "b", 1);
@@ -1117,7 +1137,8 @@ int main(int argc, char** argv) {
     CheckGet(db, roptions, "bar", NULL);
     CheckGet(db, roptions, "box", "c");
     int pos = 0;
-    rocksdb_writebatch_wi_iterate(wbi, &pos, CheckPut, CheckPutCF, CheckDel);
+    rocksdb_writebatch_wi_iterate(wbi, &pos, CheckPut, CheckPutCF, CheckDel,
+                                  CheckDelCF);
     CheckCondition(pos == 3);
     rocksdb_writebatch_wi_clear(wbi);
     rocksdb_writebatch_wi_destroy(wbi);
@@ -1631,8 +1652,10 @@ int main(int argc, char** argv) {
     int pos = 10;
     rocksdb_writebatch_put_cf(wb, handles[1], "bar", 3, "b", 1);
     rocksdb_writebatch_put_cf(wb, handles[1], "box", 3, "c", 1);
-    rocksdb_writebatch_iterate(wb, &pos, CheckPut, CheckPutCF, CheckDel);
-    CheckCondition(pos == 12);
+    rocksdb_writebatch_delete_cf(wb, handles[1], "bar", 3);
+    rocksdb_writebatch_iterate(wb, &pos, CheckPut, CheckPutCF, CheckDel,
+                               CheckDelCF);
+    CheckCondition(pos == 13);
     rocksdb_writebatch_destroy(wb);
 
     rocksdb_flush_wal(db, 1, &err);
