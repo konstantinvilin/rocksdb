@@ -250,6 +250,45 @@ static void CheckDelCF(void* ptr, uint32_t cfid, const char* k, size_t klen) {
   (*state)++;
 }
 
+// Callback from rocksdb_writebatch_iterate()
+static void CheckMerge(void* ptr, const char* k, size_t klen, const char* v,
+                       size_t vlen) {
+  int* state = (int*)ptr;
+  CheckCondition(*state < 3);
+  switch (*state) {
+    case 2:
+      CheckEqual("box", k, klen);
+      CheckEqual("cc", v, vlen);
+      break;
+    default:
+      CheckCondition(false);
+      break;
+  }
+  (*state)++;
+}
+
+// Callback from rocksdb_writebatch_iterate()
+static void CheckMergeCF(void* ptr, uint32_t cfid, const char* k, size_t klen,
+                         const char* v, size_t vlen) {
+  int* state = (int*)ptr;
+  switch (*state) {
+    case 3:
+      CheckEqual("box", k, klen);
+      CheckEqual("cc", v, vlen);
+      CheckCondition(cfid == 0);
+      break;
+    case 13:
+      CheckEqual("box", k, klen);
+      CheckEqual("cc", v, vlen);
+      CheckCondition(cfid == 1);
+      break;
+    default:
+      CheckCondition(false);
+      break;
+  }
+  (*state)++;
+}
+
 static void CmpDestroy(void* arg) { (void)arg; }
 
 static int CmpCompare(void* arg, const char* a, size_t alen, const char* b,
@@ -1026,10 +1065,11 @@ int main(int argc, char** argv) {
     CheckGet(db, roptions, "foo", "hello");
     CheckGet(db, roptions, "bar", NULL);
     CheckGet(db, roptions, "box", "c");
+    rocksdb_writebatch_merge(wb, "box", 3, "cc", 2);
     int pos = 0;
     rocksdb_writebatch_iterate(wb, &pos, CheckPut, CheckPutCF, CheckDel,
-                               CheckDelCF);
-    CheckCondition(pos == 3);
+                               CheckDelCF, CheckMerge, CheckMergeCF);
+    CheckCondition(pos == 4);
     rocksdb_writebatch_clear(wb);
     rocksdb_writebatch_put(wb, "bar", 3, "b", 1);
     rocksdb_writebatch_put(wb, "bay", 3, "d", 1);
@@ -1136,10 +1176,11 @@ int main(int argc, char** argv) {
     CheckGet(db, roptions, "foo", "hello");
     CheckGet(db, roptions, "bar", NULL);
     CheckGet(db, roptions, "box", "c");
+    rocksdb_writebatch_wi_merge(wbi, "box", 3, "cc", 2);
     int pos = 0;
     rocksdb_writebatch_wi_iterate(wbi, &pos, CheckPut, CheckPutCF, CheckDel,
-                                  CheckDelCF);
-    CheckCondition(pos == 3);
+                                  CheckDelCF, CheckMerge, CheckMergeCF);
+    CheckCondition(pos == 4);
     rocksdb_writebatch_wi_clear(wbi);
     rocksdb_writebatch_wi_destroy(wbi);
   }
@@ -1653,9 +1694,10 @@ int main(int argc, char** argv) {
     rocksdb_writebatch_put_cf(wb, handles[1], "bar", 3, "b", 1);
     rocksdb_writebatch_put_cf(wb, handles[1], "box", 3, "c", 1);
     rocksdb_writebatch_delete_cf(wb, handles[1], "bar", 3);
+    rocksdb_writebatch_merge_cf(wb, handles[1], "box", 3, "cc", 2);
     rocksdb_writebatch_iterate(wb, &pos, CheckPut, CheckPutCF, CheckDel,
-                               CheckDelCF);
-    CheckCondition(pos == 13);
+                               CheckDelCF, CheckMerge, CheckMergeCF);
+    CheckCondition(pos == 14);
     rocksdb_writebatch_destroy(wb);
 
     rocksdb_flush_wal(db, 1, &err);

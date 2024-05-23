@@ -2180,6 +2180,9 @@ class H : public WriteBatch::Handler {
                   const char* v, size_t vlen);
   void (*deleted_)(void*, const char* k, size_t klen);
   void (*deleted_cf_)(void*, uint32_t cfid, const char* k, size_t klen);
+  void (*merge_)(void*, const char* k, size_t klen, const char* v, size_t vlen);
+  void (*merge_cf_)(void*, uint32_t cfid, const char* k, size_t klen,
+                    const char* v, size_t vlen);
   void Put(const Slice& key, const Slice& value) override {
     (*put_)(state_, key.data(), key.size(), value.data(), value.size());
   }
@@ -2196,6 +2199,15 @@ class H : public WriteBatch::Handler {
     (*deleted_cf_)(state_, column_family_id, key.data(), key.size());
     return Status::OK();
   }
+  void Merge(const Slice& key, const Slice& value) override {
+    (*merge_)(state_, key.data(), key.size(), value.data(), value.size());
+  }
+  Status MergeCF(uint32_t column_family_id, const Slice& key,
+                 const Slice& value) override {
+    (*merge_cf_)(state_, column_family_id, key.data(), key.size(), value.data(),
+                 value.size());
+    return Status::OK();
+  }
 };
 
 void rocksdb_writebatch_iterate(
@@ -2204,13 +2216,19 @@ void rocksdb_writebatch_iterate(
     void (*put_cf)(void*, uint32_t cfid, const char* k, size_t klen,
                    const char* v, size_t vlen),
     void (*deleted)(void*, const char* k, size_t klen),
-    void (*deleted_cf)(void*, uint32_t cfid, const char* k, size_t klen)) {
+    void (*deleted_cf)(void*, uint32_t cfid, const char* k, size_t klen),
+    void (*merge)(void*, const char* k, size_t klen, const char* v,
+                  size_t vlen),
+    void (*merge_cf)(void*, uint32_t cfid, const char* k, size_t klen,
+                     const char* v, size_t vlen)) {
   H handler;
   handler.state_ = state;
   handler.put_ = put;
   handler.put_cf_ = put_cf;
   handler.deleted_ = deleted;
   handler.deleted_cf_ = deleted_cf;
+  handler.merge_ = merge;
+  handler.merge_cf_ = merge_cf;
   b->rep.Iterate(&handler);
 }
 
@@ -2448,13 +2466,19 @@ void rocksdb_writebatch_wi_iterate(
     void (*put_cf)(void*, uint32_t cfid, const char* k, size_t klen,
                    const char* v, size_t vlen),
     void (*deleted)(void*, const char* k, size_t klen),
-    void (*deleted_cf)(void*, uint32_t cfid, const char* k, size_t klen)) {
+    void (*deleted_cf)(void*, uint32_t cfid, const char* k, size_t klen),
+    void (*merge)(void*, const char* k, size_t klen, const char* v,
+                  size_t vlen),
+    void (*merge_cf)(void*, uint32_t cfid, const char* k, size_t klen,
+                     const char* v, size_t vlen)) {
   H handler;
   handler.state_ = state;
   handler.put_ = put;
   handler.put_cf_ = put_cf;
   handler.deleted_ = deleted;
   handler.deleted_cf_ = deleted_cf;
+  handler.merge_ = merge;
+  handler.merge_cf_ = merge_cf;
   b->rep->GetWriteBatch()->Iterate(&handler);
 }
 
