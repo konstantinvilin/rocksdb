@@ -194,12 +194,12 @@ static void CheckPut(void* ptr, const char* k, size_t klen, const char* v,
 // Callback from rocksdb_writebatch_iterate()
 static void CheckDel(void* ptr, const char* k, size_t klen) {
   int* state = (int*)ptr;
-  CheckCondition((*state) == 2);
+  CheckCondition(*state == 2);
   CheckEqual("bar", k, klen);
   (*state)++;
 }
 
-// Callback from rocksdb_writebatch_iterate()
+// Callback from rocksdb_writebatch_iterate_cf()
 static void CheckPutCF(void* ptr, uint32_t cfid, const char* k, size_t klen,
                        const char* v, size_t vlen) {
   int* state = (int*)ptr;
@@ -221,7 +221,7 @@ static void CheckPutCF(void* ptr, uint32_t cfid, const char* k, size_t klen,
   (*state)++;
 }
 
-// Callback from rocksdb_writebatch_iterate()
+// Callback from rocksdb_writebatch_iterate_cf()
 static void CheckDelCF(void* ptr, uint32_t cfid, const char* k, size_t klen) {
   int* state = (int*)ptr;
   switch (*state) {
@@ -236,7 +236,7 @@ static void CheckDelCF(void* ptr, uint32_t cfid, const char* k, size_t klen) {
   (*state)++;
 }
 
-// Callback from rocksdb_writebatch_iterate()
+// Callback from rocksdb_writebatch_iterate_cf()
 static void CheckMergeCF(void* ptr, uint32_t cfid, const char* k, size_t klen,
                          const char* v, size_t vlen) {
   int* state = (int*)ptr;
